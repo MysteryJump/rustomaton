@@ -30,8 +30,8 @@ fn main() {
     let is_accepted = check_accept(&dfa, input_line.trim_end().to_string());
 
     match is_accepted {
-        true    =>  println!("Accepted :)"),
-        false   =>  println!("Not Accepted :(")
+        true => println!("Accepted :)"),
+        false => println!("Not Accepted :("),
     }
 }
 
@@ -199,7 +199,6 @@ fn initialize_dfa<'a>(
 fn check_accept(dfa: &dfa::DFA, target_txt: String) -> bool {
     let mut current_state = dfa.starts_index;
     let mut text = target_txt.clone().chars().rev().collect::<String>();
-    
     let mut grid: Vec<Vec<char>> = Vec::with_capacity(dfa.states_count as usize);
     for _ in 0..dfa.states_count {
         let mut vec: Vec<char> = Vec::with_capacity(dfa.states_count as usize);
@@ -216,7 +215,7 @@ fn check_accept(dfa: &dfa::DFA, target_txt: String) -> bool {
         if text.len() == 0 {
             return dfa.acceptance_state.contains(&current_state);
         }
-        let now_char : char = text.pop().unwrap();
+        let now_char: char = text.pop().unwrap();
         for i in 0..dfa.states_count {
             if grid[current_state as usize][i as usize] == now_char {
                 current_state = i;
@@ -228,4 +227,38 @@ fn check_accept(dfa: &dfa::DFA, target_txt: String) -> bool {
             return false;
         }
     }
+}
+
+#[test]
+fn check_accept_test() {
+    let mut states = vec![
+        vertex::Vertex {
+            index: 0,
+            name: "0".to_string()
+        },
+        vertex::Vertex {
+            index: 1,
+            name: "1".to_string()
+        }
+    ];
+    let mut functions = vec![
+        edge::Edge {
+            index: 0,
+            tag: 'a',
+            from: 0,
+            to: 1
+        },
+        edge::Edge {
+            index: 1,
+            tag: 'b',
+            from: 1,
+            to: 0
+        }
+    ];
+    let mut ends = vec![1];
+    let dfa = initialize_dfa(&mut states, &mut functions, 0, &mut ends);
+    assert_eq!(check_accept(&dfa, "a".to_string()),true);
+    assert_eq!(check_accept(&dfa, "ab".to_string()),false);
+    assert_eq!(check_accept(&dfa, "ababa".to_string()),true);
+
 }
