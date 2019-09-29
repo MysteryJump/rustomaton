@@ -100,7 +100,8 @@ fn read_edges(e_count: u32) -> Vec<edge::Edge> {
         let from_state = read_count(format!("{}'s from state: ", i));
         let to_state = read_count(format!("{}'s to state: ", i));
 
-        let input_character = read_character(format!("{}'s input character: ", i));
+        let input_character =
+            read_characters(format!("{}'s input characters (space ignored): ", i));
         edges.push(edge::Edge {
             index: i,
             from: from_state,
@@ -111,6 +112,7 @@ fn read_edges(e_count: u32) -> Vec<edge::Edge> {
     edges
 }
 
+#[allow(dead_code)]
 fn read_character(promt_str: String) -> char {
     let mut input_line: String = String::new();
     println!("{}", promt_str);
@@ -124,6 +126,27 @@ fn read_character(promt_str: String) -> char {
         } else {
             println!("Please input one character.");
             continue;
+        }
+    }
+}
+
+fn read_characters(promt_str: String) -> Vec<char> {
+    let mut input_line: String = String::new();
+    let mut characters = Vec::new();
+    println!("{}", promt_str);
+    loop {
+        std::io::stdin()
+            .read_line(&mut input_line)
+            .expect("Failed to read line.");
+        let trimed_chars = input_line.trim_end().replace(" ", "");
+        let count = trimed_chars.len();
+        if count < 1 {
+            println!("Please input at least one character.");
+            continue;
+        }
+        for i in 0..(count - 1) {
+            characters.push(trimed_chars.chars().nth(i).unwrap());
+            return characters;
         }
     }
 }
@@ -199,16 +222,16 @@ fn initialize_dfa<'a>(
 fn check_accept(dfa: &dfa::DFA, target_txt: String) -> bool {
     let mut current_state = dfa.starts_index;
     let mut text = target_txt.clone().chars().rev().collect::<String>();
-    let mut grid: Vec<Vec<char>> = Vec::with_capacity(dfa.states_count as usize);
+    let mut grid: Vec<Vec<Vec<char>>> = Vec::with_capacity(dfa.states_count as usize);
     for _ in 0..dfa.states_count {
-        let mut vec: Vec<char> = Vec::with_capacity(dfa.states_count as usize);
+        let mut vec: Vec<Vec<char>> = Vec::with_capacity(dfa.states_count as usize);
         for _ in 0..dfa.states_count {
-            vec.push(' ');
+            vec.push(Vec::new());
         }
         grid.push(vec);
     }
     for item in dfa.functions.iter() {
-        grid[item.from as usize][item.to as usize] = item.tag;
+        grid[item.from as usize][item.to as usize] = item.tag.clone();
     }
     loop {
         let mut is_tansitioned = false;
@@ -217,10 +240,13 @@ fn check_accept(dfa: &dfa::DFA, target_txt: String) -> bool {
         }
         let now_char: char = text.pop().unwrap();
         for i in 0..dfa.states_count {
-            if grid[current_state as usize][i as usize] == now_char {
-                current_state = i;
-                is_tansitioned = true;
-                break;
+            let grid_chars = grid[current_state as usize][i as usize].clone();
+            for chr in grid_chars {
+                if chr == now_char {
+                    current_state = i;
+                    is_tansitioned = true;
+                    break;
+                }
             }
         }
         if !is_tansitioned {
@@ -230,35 +256,90 @@ fn check_accept(dfa: &dfa::DFA, target_txt: String) -> bool {
 }
 
 #[test]
-fn check_accept_test() {
+fn check_accept_test_1() {
     let mut states = vec![
         vertex::Vertex {
             index: 0,
-            name: "0".to_string()
+            name: "0".to_string(),
         },
         vertex::Vertex {
             index: 1,
-            name: "1".to_string()
+            name: "1".to_string(),
+        },
+    ];
+    let mut functions = vec![
+        edge::Edge {
+            index: 0,
+            tag: vec!['a'],
+            from: 0,
+            to: 1,
+        },
+        edge::Edge {
+            index: 1,
+            tag: vec!['b'],
+            from: 1,
+            to: 0,
+        },
+    ];
+    let mut ends = vec![1];
+    let dfa = initialize_dfa(&mut states, &mut functions, 0, &mut ends);
+    assert_eq!(check_accept(&dfa, "a".to_string()), true);
+    assert_eq!(check_accept(&dfa, "ab".to_string()), false);
+    assert_eq!(check_accept(&dfa, "ababa".to_string()), true);
+}
+
+#[test]
+fn check_accept_test_2() {
+    let mut states = vec![
+        vertex::Vertex {
+            index: 0,
+            name: "0".to_string(),
+        },
+        vertex::Vertex {
+            index: 1,
+            name: "1".to_string(),
+        },
+        vertex::Vertex {
+            index: 2,
+            name: "2".to_string()
         }
     ];
     let mut functions = vec![
         edge::Edge {
             index: 0,
-            tag: 'a',
+            tag: vec!['1'],
             from: 0,
-            to: 1
+            to: 0,
         },
         edge::Edge {
             index: 1,
-            tag: 'b',
-            from: 1,
-            to: 0
+            tag: vec!['0'],
+            from: 0,
+            to: 1,
+        },
+        edge::Edge {
+            index: 2,
+            tag: vec!['0'],
+            from : 1,
+            to: 1
+        },
+        edge::Edge {
+            index: 3,
+            tag: vec!['1'],
+            from : 1,
+            to: 2
+        },
+        edge::Edge {
+            index: 4,
+            tag: vec!['0', '1'],
+            from: 2,
+            to: 2
         }
     ];
-    let mut ends = vec![1];
+    let mut ends = vec![2];
     let dfa = initialize_dfa(&mut states, &mut functions, 0, &mut ends);
-    assert_eq!(check_accept(&dfa, "a".to_string()),true);
-    assert_eq!(check_accept(&dfa, "ab".to_string()),false);
-    assert_eq!(check_accept(&dfa, "ababa".to_string()),true);
-
+    assert_eq!(check_accept(&dfa, "01".to_string()), true);
+    assert_eq!(check_accept(&dfa, "11110".to_string()), false);
+    assert_eq!(check_accept(&dfa, "aaaaa".to_string()), false);
+    assert_eq!(check_accept(&dfa, "1111000110101010101101".to_string()), true);
 }
